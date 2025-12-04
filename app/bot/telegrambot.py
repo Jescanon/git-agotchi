@@ -38,7 +38,7 @@ def register_handlers(dp):
             return await message.answer(f"Такой пользователь GitHub не найден. Попробуйте еще раз.")
 
         async with async_session() as session:
-            UserModel
+
 
             inf = await session.scalars(update(UserModel).
                                         where(UserModel.telegram_id == message.from_user.id)
