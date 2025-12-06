@@ -19,8 +19,8 @@ dp = Dispatcher()
 
 async def main():
     print("Бот запускается")
-    from app.bot.telegrambot import register_handlers
-    register_handlers(dp)
+    from app.bot.telegrambot import user_router
+    dp.include_router(user_router)
 
     try:
         await dp.start_polling(bot, skip_updates=True)

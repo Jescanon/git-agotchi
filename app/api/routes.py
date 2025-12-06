@@ -1,10 +1,11 @@
 import httpx
 
+TIMEOUT_SECONDS = 10
 
 async def get_inf(name):
     name = name.lower().strip()
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
         response = await client.get(f"https://api.github.com/users/{name}")
 
     if response.status_code == 404:

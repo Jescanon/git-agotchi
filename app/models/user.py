@@ -1,5 +1,5 @@
 from sqlalchemy.orm import mapped_column, Mapped, relationship
-from sqlalchemy import ForeignKey, String, CheckConstraint, Integer
+from sqlalchemy import ForeignKey, String, CheckConstraint, Integer, BIGINT
 
 from datetime import datetime
 
@@ -9,7 +9,7 @@ from app.core.database import Base
 class User(Base):
     __tablename__ = "user"
 
-    telegram_id: Mapped[int] = mapped_column(primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(BIGINT, primary_key=True)
 
     github_name: Mapped[str] = mapped_column(unique=True, index=True, nullable=True)
     github_token: Mapped[str] = mapped_column(unique=True, nullable=True)
