@@ -1,5 +1,3 @@
-from idlelib.window import add_windows_to_menu
-
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 from sqlalchemy import select, update
@@ -39,9 +37,9 @@ def register_handlers(dp):
 
         async with async_session() as session:
 
-
-            inf = await session.scalars(update(UserModel).
+            await session.scalars(update(UserModel).
                                         where(UserModel.telegram_id == message.from_user.id)
-                                        .values(UserModel))
+                                        .values(github_name=info_github))
+            await session.commit()
 
-
+        return await message.answer(f"Вы успешно зарагистрировали совой никнейм {info_github}")
