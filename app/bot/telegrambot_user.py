@@ -4,7 +4,6 @@ from aiogram.types import Message, CallbackQuery
 from sqlalchemy import select, update
 
 from aiogram.fsm.context import FSMContext
-from aiogram.types import FSInputFile, InputMediaPhoto
 
 from app.core.database import async_session
 
@@ -13,16 +12,24 @@ from app.models.user import User as UserModel
 from app.api.routes import get_inf
 from .telegram_utils import get_start_keyboard, RegistrationStates, dashboard
 
+from app.services.validate_time import get_time
 
 user_router = Router()
 
 
 @user_router.message(Command("start"))
 async def start_handler(message: Message):
-    await message.answer(
-        "Добро пожаловать! Чтобы зарегистрироваться и привязать ваш аккаунт GitHub, нажмите кнопку ниже:",
-        reply_markup=get_start_keyboard()
-    )
+    async with async_session() as session:
+        res = await session.scalars(select(UserModel).where(UserModel.telegram_id == message.from_user.id))
+        info = res.first()
+
+        if info:
+            return await send_dashboard(message)
+
+        await message.answer(
+            "Добро пожаловать! Чтобы зарегистрироваться и привязать ваш аккаунт GitHub, нажмите кнопку ниже:",
+            reply_markup=get_start_keyboard()
+        )
 
 @user_router.callback_query(F.data == "start_registration")
 async def help_handler(callback: CallbackQuery, state: FSMContext):
@@ -39,9 +46,11 @@ async def help_handler(callback: CallbackQuery, state: FSMContext):
 
     await state.set_state(RegistrationStates.waiting_for_github_name)
 
-    await callback.message.edit_text(
+    await callback.message.answer(
         "Введите свой никнейм на GitHub в следующем сообщении."
     )
+
+    await callback.answer("Начало изменения аккаунта GitHub...")
 
 
 @user_router.message(RegistrationStates.waiting_for_github_name, F.text)
@@ -68,16 +77,24 @@ async def process_github_name_input(message: Message, state: FSMContext):
 
     await state.clear()
 
-    return await message.answer(
+    await message.answer(
         f"Поздравляем! Вы успешно зарегистрировали свой никнейм {info_github}."
     )
+
+    return await send_dashboard(message)
 
 
 @user_router.message(Command("show_dashboard"))
 async def send_dashboard(message: Message):
+    time = await get_time()
+
+    async with async_session() as session:
+        result = await session.scalars(select(UserModel).where(UserModel.telegram_id == message.from_user.id))
+        inf = result.first()
+
     caption_text = (
-        f"🤖 **ВАШ ГИТ-ТАМАГОЧИ**\n"
-        f"Статистика: 12 коммитов за неделю.\n"
+        f"{time}, {inf.github_name}\n"
+        f"Что хотим сделать?"
     )
 
     await message.answer_photo(
@@ -86,3 +103,4 @@ async def send_dashboard(message: Message):
         reply_markup=dashboard(),
         parse_mode="Markdown"
     )
+

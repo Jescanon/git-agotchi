@@ -8,13 +8,15 @@ def get_start_keyboard():
 
 def dashboard():
     builder = InlineKeyboardBuilder()
-    builder.button(text="Обновить", callback_data="profile_refresh")
     builder.button(text="Изменить GitHub", callback_data="start_registration")
-    builder.button(text="Удалить аккаунт", callback_data="profile_delete")
+    builder.button(text="Создать агаточи", callback_data="create_agatochi")
 
-    builder.adjust(2, 1)
+    builder.adjust(1, 1)
 
     return builder.as_markup()
 
 class RegistrationStates(StatesGroup):
     waiting_for_github_name = State()
+
+class NameStates(StatesGroup):
+    waiting_for_agatchi_name = State()
