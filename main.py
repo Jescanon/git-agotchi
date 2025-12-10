@@ -17,12 +17,15 @@ async def root():
 bot = Bot(token=get_settings().token)
 dp = Dispatcher()
 
-bot.send_message(chat_id="1189008833", text="Тема пидорасик, съел кашки 😎❤🤞😉🎶😢💖😜")
+
 
 async def main():
     print("Бот запускается")
     from app.bot.telegrambot_user import user_router
+    from app.bot.telegrambot_agatchi import user_router as agatochi_router
     dp.include_router(user_router)
+    dp.include_router(agatochi_router)
+
 
     try:
         await dp.start_polling(bot, skip_updates=True)
