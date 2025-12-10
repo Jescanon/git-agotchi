@@ -20,16 +20,16 @@ class Agotchi(Base):
     __tablename__ = "agotchi"
 
     user_id: Mapped[int] = mapped_column(ForeignKey('user.telegram_id'), unique=True, primary_key=True)
-    avatar_url: Mapped[str] = mapped_column(String)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    hp: Mapped[int] = mapped_column(Integer)
-    mood: Mapped[str] = mapped_column(String)
-    last_commit_check: Mapped[datetime]
+    avatar_url: Mapped[str] = mapped_column(String, nullable=True)
+    name: Mapped[str] = mapped_column(String, nullable=True)
+    hp: Mapped[int] = mapped_column(Integer, default=20)
+    mood: Mapped[str] = mapped_column(String, default="Happy")
+    last_commit_check: Mapped[datetime] = mapped_column(nullable=True)
 
     users: Mapped["User"] = relationship("User", back_populates="agotchi")
 
     __table_args__ = (
-        CheckConstraint("hp <= 100", name="agotchi_hp_max"),
+        CheckConstraint("hp <= 100 and hp >= 0", name="agotchi_hp_max"),
         CheckConstraint("hp >= 0", name="agotchi_hp_mix"),
         CheckConstraint("mood IN ('Happy', 'Angry', 'Dead')", name="agotchi_mood"),
     )
