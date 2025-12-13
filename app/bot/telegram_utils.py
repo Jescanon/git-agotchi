@@ -11,7 +11,7 @@ def get_start_keyboard():
 def dashboard():
     builder = InlineKeyboardBuilder()
     builder.button(text="Изменить GitHub", callback_data="start_registration")
-    builder.button(text="Создать агаточи", callback_data="create_agatochi")
+    builder.button(text="Аготочи", callback_data="create_agatochi")
 
     builder.adjust(1, 1)
 
@@ -21,9 +21,11 @@ def agatochi():
     builder = InlineKeyboardBuilder()
 
     builder.button(text="Изменить Имя", callback_data="update_name")
-    builder.button(text="Создать Аватарку", callback_data="update_avatars")
+    builder.button(text="Изменить Питомца", callback_data="update_avatars")
+    builder.button(text="Вернуться назад", callback_data="show_dashboard")
+    builder.button(text="Проверить сегодняшние commits", callback_data="show_commits")
 
-    builder.adjust(1, 1)
+    builder.adjust(2, 1)
     return builder.as_markup()
 
 
@@ -33,9 +35,4 @@ class RegistrationStates(StatesGroup):
 
 class NameStates(StatesGroup):
     waiting_for_agatchi_name = State()
-
-class ItemCallback(CallbackData, prefix="item"):
-    flag: int
-
-class EditAction(CallbackData, prefix="edit"):
-    type: str
+    waiting_for_agatchi_avatar = State()

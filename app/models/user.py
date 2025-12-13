@@ -29,8 +29,13 @@ class Agotchi(Base):
     users: Mapped["User"] = relationship("User", back_populates="agotchi")
 
     __table_args__ = (
-        CheckConstraint("hp <= 100 and hp >= 0", name="agotchi_hp_max"),
+        CheckConstraint("hp <= 100", name="agotchi_hp_max"),
         CheckConstraint("hp >= 0", name="agotchi_hp_mix"),
         CheckConstraint("mood IN ('Happy', 'Angry', 'Dead')", name="agotchi_mood"),
     )
 
+class AvatarAgatochi(Base):
+    __tablename__ = "avataragatochi"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    url: Mapped[str] = mapped_column(nullable=True)

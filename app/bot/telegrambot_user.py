@@ -1,6 +1,6 @@
 from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, Union
 from sqlalchemy import select, update
 
 from aiogram.fsm.context import FSMContext
@@ -9,7 +9,7 @@ from app.core.database import async_session
 
 from app.models.user import User as UserModel
 
-from app.api.routes import get_inf
+from app.api.routes import get_inf_user
 from .telegram_utils import get_start_keyboard, RegistrationStates, dashboard
 
 from app.services.validate_time import get_time
@@ -61,13 +61,12 @@ async def process_github_name_input(message: Message, state: FSMContext):
     if github_name_input.startswith('/'):
         return await message.answer("Пожалуйста, введите никнейм, а не команду.")
 
-    info_github = await get_inf(github_name_input)
+    info_github = await get_inf_user(github_name_input)
 
     if not info_github:
         return await message.answer(
             f"Пользователь GitHub с никнеймом {github_name_input} не найден. Попробуйте ввести никнейм еще раз."
         )
-
 
     async with async_session() as session:
         await session.execute(update(UserModel).
@@ -85,19 +84,36 @@ async def process_github_name_input(message: Message, state: FSMContext):
 
 
 @user_router.message(Command("show_dashboard"))
-async def send_dashboard(message: Message):
+@user_router.callback_query(F.data == "show_dashboard")
+async def send_dashboard(update: Union[CallbackQuery, Message]):
+    if isinstance(update, Message):
+        answer_target = update
+        user_id = update.from_user.id
+
+    elif isinstance(update, CallbackQuery):
+        callback = update
+        user_id = callback.from_user.id
+        answer_target = callback.message
+
+        await callback.answer()
+    else:
+        return
+
     time = await get_time()
 
     async with async_session() as session:
-        result = await session.scalars(select(UserModel).where(UserModel.telegram_id == message.from_user.id))
+        result = await session.scalars(select(UserModel).where(UserModel.telegram_id == user_id))
         inf = result.first()
+
+    if not inf:
+        return await answer_target.answer("Извините, ваши данные не найдены. Возможно, вы не завершили регистрацию. Используйте команду /start.")
 
     caption_text = (
         f"{time}, {inf.github_name}\n"
         f"Что хотим сделать?"
     )
 
-    await message.answer_photo(
+    await answer_target.answer_photo(
         photo="https://otvet.mail.ru/mm-proxy/mail/burgomistr1970/_cover/i-415.jpg",
         caption=caption_text,
         reply_markup=dashboard(),
