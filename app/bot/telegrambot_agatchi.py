@@ -145,8 +145,8 @@ async def check_commits(callback: CallbackQuery):
         if not isinstance(last_activ, dict):
             return await callback.message.answer("Произошла ошибка с подключением, повторите чуть попозже")
 
-        commit_time = datetime.fromisoformat(last_activ["time"])
-        commit_time = commit_time.replace(tzinfo=None)
+
+        commit_time = datetime.fromisoformat(last_activ["time"]).replace(tzinfo=None)
         commit_interval = last_activ.get("interval")
 
         time_dicts = {
@@ -177,7 +177,7 @@ async def check_commits(callback: CallbackQuery):
                                                  f"За последние сутки у вас не было коммитов.\n"
                                                  f"Последний коммит: {' '.join(f'{k}:{v}, ' for k, v in time_dicts.items())}")
 
-        last_check_time = datetime.fromisoformat(res_agtochi.last_commit_check)
+        last_check_time = res_agtochi.last_commit_check
 
         if commit_time <= last_check_time:
             return await callback.message.answer(f"У вас уже был commit за сегодня 😎\n"
