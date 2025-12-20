@@ -7,7 +7,7 @@ from .routes import get_inf_events
 
 router = APIRouter(tags=["api"], prefix="/api")
 
-TIMEOUT_SECONDS = 10
+TIMEOUT_SECONDS = 100
 
 
 async def get_code_inf(name):
@@ -61,7 +61,7 @@ async def root(name: str, request: Request, info: dict = Depends(get_inf_events)
         m = i.get("type", None)
         time_now = datetime.now().replace(tzinfo=timezone.utc)
         dt = datetime.fromisoformat(i.get("created_at"))
-        if m and m == "PushEvent" and ((time_now - dt).total_seconds()) // 86400 < 4 and i.get("actor").get("login").lower() == name.lower():
+        if m and m == "PushEvent" and i.get("actor").get("login").lower() == name.lower():
             info_time = {
                 "interval": ((time_now - dt).total_seconds()) // 86400,
                 "time": dt,
@@ -71,11 +71,9 @@ async def root(name: str, request: Request, info: dict = Depends(get_inf_events)
             s.append(info_time)
 
     if not flag:
-        mass = []
-        for i in s:
-            info = await get_code_inf(f"{i.get('name_directory')}/commits/{i.get('SHA')}")
-            mass.append(info)
-        return mass
+        information = s.copy()[0]
+        result = await get_code_inf(f"{information.get('name_directory')}/commits/{information.get('SHA')}")
+        return result
 
     return s
 
@@ -88,5 +86,8 @@ async def get_request(name, headeres: bool | None = None):
             response = await client.get(f"http://127.0.0.1:8000/api/{name}", headers=headers)
         else:
             response = await client.get(f"http://127.0.0.1:8000/api/{name}")
+
+    if response.status_code == 404:
+        return False
 
     return response.json()
