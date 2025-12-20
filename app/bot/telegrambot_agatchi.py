@@ -15,6 +15,8 @@ from .telegram_utils import NameStates, agatochi
 
 from app.api.github_api import get_request
 
+from app.services.validate_gemini_response import get_info_from_gemini
+
 
 user_router = Router()
 
@@ -36,7 +38,14 @@ async def create_agatochi(callback: CallbackQuery, state: FSMContext):
             await callback.answer()
 
         else:
-            return await show_photo(callback.message, user_id=callback.from_user.id)
+            if res.name is None:
+                await state.set_state(NameStates.waiting_for_agatchi_name)
+
+                await callback.message.answer("Вы не дали имя agatchi, введите его ниже!")
+
+                await callback.answer()
+            else:
+                return await show_photo(callback.message, user_id=callback.from_user.id)
 
 
 @user_router.message(NameStates.waiting_for_agatchi_name, F.text)
@@ -117,10 +126,11 @@ async def show_photo(message: Message, user_id: int = None):
                 f"Мое настроение сегодня {res.mood}\n"
                 f"Мои жизни {res.hp}")
 
-    try:
-        photo = res.avatar_url
-    except AttributeError:
+    if res.avatar_url is None:
         photo = "https://avatars.mds.yandex.net/i?id=af11ac927c419348eaea9c43b9d24955_l-4457245-images-thumbs&n=13"
+    else:
+        photo = res.avatar_url
+
 
     return await message.answer_photo(photo=photo,
         caption=text,
@@ -140,7 +150,10 @@ async def check_commits(callback: CallbackQuery):
 
         info = await get_request(res.github_name, headeres=True)
 
-        last_activ = info[0]
+        if info:
+            last_activ = info[0]
+        else:
+            return await callback.message.answer("ВЫ СОШЛИ С УМА, У ВАС НЕ БЫЛО КОМИТОВ ОЧЕНЬ ДОЛГОЕ ВРЕМЯ!🤢")
 
         if not isinstance(last_activ, dict):
             return await callback.message.answer("Произошла ошибка с подключением, повторите чуть попозже")
@@ -175,13 +188,12 @@ async def check_commits(callback: CallbackQuery):
         if commit_interval > 1:
             return await callback.message.answer(f"Вы меня обманываете 🤢\n"
                                                  f"За последние сутки у вас не было коммитов.\n"
-                                                 f"Последний коммит: {' '.join(f'{k}:{v}, ' for k, v in time_dicts.items())}")
+                                                 f"Последний коммит: {' '.join(f' {k}: {v}, ' for k, v in time_dicts.items())}")
 
         last_check_time = res_agtochi.last_commit_check
 
-        if commit_time <= last_check_time:
-            return await callback.message.answer(f"У вас уже был commit за сегодня 😎\n"
-                                                 f"Но я с радостью разберу ваш код — кидайте его!")
+        if (commit_time - last_check_time).total_seconds() < 61200:
+            return await callback.message.answer(f"У вас уже был commit за сегодня 😎\n")
 
         if res_agtochi.hp >= 100:
             await session.execute(update(AgotchiModel).
@@ -189,13 +201,29 @@ async def check_commits(callback: CallbackQuery):
                                   .values(last_commit_check=commit_time))
             await session.commit()
 
-            return await callback.message.answer("У меня максимальное количество жизней! 💖\n"
-                                                 "Но не расслабляйтесь 😏")
+            await callback.answer(f"Идет анализ, чтобы покритиковать Вас 🤢")
+
+            info = await get_info_from_gemini(res_agtochi.name)
+
+            await callback.message.answer(f"Мое мнение по Вашему дермокоду: {info.get('summary')}")
+
+            await callback.message.answer(f"Какие недочеты: {info.get('comments')}")
+
+            return callback.answer()
+
 
         await session.execute(update(AgotchiModel)
                               .where(AgotchiModel.user_id == user_id)
                               .values(last_commit_check=commit_time,hp=res_agtochi.hp + 1))
         await session.commit()
 
-        return await callback.message.answer(f"Поздравляю 🎉\n"
-                                             f"Вы продлили мне жизнь — здоровье увеличилось! 💖")
+        await callback.answer(f"Идет анализ, чтобы покритиковать Вас 🤢")
+
+        info = await get_info_from_gemini(res_agtochi.name)
+
+        await callback.message.answer(f"Мое мнение по Вашему дермокоду: {info.get('summary')}")
+
+        await callback.message.answer(f"Какие недочеты: {info.get('comments')}")
+
+        return await callback.answer(f"Поздравляю 🎉\n"
+                                    f"Вы продлили мне жизнь — здоровье увеличилось! 💖")

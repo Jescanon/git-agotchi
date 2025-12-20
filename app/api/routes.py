@@ -1,6 +1,6 @@
 import httpx
 
-TIMEOUT_SECONDS = 10
+TIMEOUT_SECONDS = 100
 
 async def get_inf_user(name):
     name = name.lower().strip()
