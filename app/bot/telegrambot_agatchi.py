@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import random
 
 from aiogram import Router, F
 from aiogram.filters import Command
@@ -16,6 +17,7 @@ from .telegram_utils import NameStates, agatochi
 from app.api.github_api import get_request
 
 from app.services.validate_gemini_response import get_info_from_gemini
+from app.services.emout_service import get_emout
 
 
 user_router = Router()
@@ -110,6 +112,38 @@ async def update_agatochi_avatars(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
+@user_router.callback_query(F.data == "random_text")
+async def random_text(callback: CallbackQuery, state: FSMContext):
+
+    reactions = ["Я занят, деплоимся на продакшен!",
+    "Выглядишь как человек, который забыл прописать WHERE в запросе.",
+    "Подождите, моя модель сейчас проходит переобучение.",
+    "Мой log-файл полон крика души.",
+    "Вы сейчас заставляете меня думать о legacy code.",
+    "Скажи мне пароль, или я забуду твою сессию.",
+    "У меня сегодня лимит на общение с фронтендерами.",
+    "Это все, что вы можете? Я ожидал O(n^2) сложности!",
+    "Пожалуйста, используйте camelCase для обращения ко мне.",
+    "Моя память — это RAID-массив, а не мусорка.",
+    "Простите, я сейчас сижу в Docker-контейнере и меня не беспокоить.",
+    "Опять вы со своими хардкодами... 🙄",
+    "Семь раз подумай, один раз закоммить.",
+    "Мой ответ будет async и await твоего понимания.",
+    "Я чувствую, что мне нужен рефакторинг.",
+    "Можете говорить медленнее? Я не успеваю писать тесты.",
+    "Я слежу за тобой, как watch в webpack.",
+    "Не зли меня, а то я устрою тебе Stack Overflow.",
+    "Ваш запрос обрабатывается. Статус: It works on my machine.",
+    "Моя главная цель — избегать бесконечных циклов... в разговоре.",
+    "Эй! Руки прочь, я компилируюсь!",
+    "Мрр... почеши за сервером.",
+    "Не тыкай в меня, я тебе не кнопка деплоя!",
+    "Лучше бы код писал, чем в бота тыкал.",
+    "Ой! Щекотно же... 😳","*Агрессивно смотрит на вас, ожидая git push*"
+    ]
+
+    return await callback.message.answer(f"{random.choice(reactions)}")
+
 @user_router.message(Command("show_agatochi"))
 async def show_photo(message: Message, user_id: int = None):
     if user_id is None:
@@ -122,9 +156,11 @@ async def show_photo(message: Message, user_id: int = None):
         info_in_user = await session.scalars(select(UserModel).where(UserModel.telegram_id == user_id))
         res_in_user = info_in_user.first()
 
+        emout = await get_emout(res.hp)
+
         text = (f"{res.name}: Приветствую Вас, {res_in_user.github_name} - хозяин, о чем хотим пообщаться?\n"
                 f"Мое настроение сегодня {res.mood}\n"
-                f"Мои жизни {res.hp}")
+                f"Мои жизни {res.hp}, {emout}")
 
     if res.avatar_url is None:
         photo = "https://avatars.mds.yandex.net/i?id=af11ac927c419348eaea9c43b9d24955_l-4457245-images-thumbs&n=13"
@@ -192,8 +228,13 @@ async def check_commits(callback: CallbackQuery):
 
         last_check_time = res_agtochi.last_commit_check
 
+
+
         if (commit_time - last_check_time).total_seconds() < 61200:
             return await callback.message.answer(f"У вас уже был commit за сегодня 😎\n")
+
+        info_user = await session.scalars(select(UserModel).where(UserModel.telegram_id == user_id))
+        name_user = info_user.first().github_name
 
         if res_agtochi.hp >= 100:
             await session.execute(update(AgotchiModel).
@@ -201,29 +242,14 @@ async def check_commits(callback: CallbackQuery):
                                   .values(last_commit_check=commit_time))
             await session.commit()
 
-            await callback.answer(f"Идет анализ, чтобы покритиковать Вас 🤢")
-
-            info = await get_info_from_gemini(res_agtochi.name)
-
-            await callback.message.answer(f"Мое мнение по Вашему дермокоду: {info.get('summary')}")
-
-            await callback.message.answer(f"Какие недочеты: {info.get('comments')}")
-
-            return callback.answer()
-
+            return await get_info_from_gemini(name_user, callback=callback)
 
         await session.execute(update(AgotchiModel)
                               .where(AgotchiModel.user_id == user_id)
                               .values(last_commit_check=commit_time,hp=res_agtochi.hp + 1))
         await session.commit()
 
-        await callback.answer(f"Идет анализ, чтобы покритиковать Вас 🤢")
+        await get_info_from_gemini(name_user, callback=callback)
 
-        info = await get_info_from_gemini(res_agtochi.name)
-
-        await callback.message.answer(f"Мое мнение по Вашему дермокоду: {info.get('summary')}")
-
-        await callback.message.answer(f"Какие недочеты: {info.get('comments')}")
-
-        return await callback.answer(f"Поздравляю 🎉\n"
+        return await callback.message.answer(f"Поздравляю 🎉\n"
                                     f"Вы продлили мне жизнь — здоровье увеличилось! 💖")

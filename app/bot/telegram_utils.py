@@ -23,9 +23,11 @@ def agatochi():
     builder.button(text="Изменить Имя", callback_data="update_name")
     builder.button(text="Изменить Питомца", callback_data="update_avatars")
     builder.button(text="Вернуться назад", callback_data="show_dashboard")
+    builder.button(text="НЕ ЖМИ СЮДА", callback_data="random_text")
     builder.button(text="Проверить сегодняшние commits", callback_data="show_commits")
 
-    builder.adjust(2, 1)
+
+    builder.adjust(3, 1, 1)
     return builder.as_markup()
 
 
