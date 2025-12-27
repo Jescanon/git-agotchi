@@ -17,7 +17,8 @@ from .telegram_utils import NameStates, agatochi
 from app.api.github_api import get_request
 
 from app.services.validate_gemini_response import get_info_from_gemini
-from app.services.emout_service import get_emout
+from app.services.emout_service import get_emout, get_reactions
+from app.services.mood_service import inf_about_mood
 
 
 user_router = Router()
@@ -113,36 +114,10 @@ async def update_agatochi_avatars(callback: CallbackQuery, state: FSMContext):
 
 
 @user_router.callback_query(F.data == "random_text")
-async def random_text(callback: CallbackQuery, state: FSMContext):
-
-    reactions = ["Я занят, деплоимся на продакшен!",
-    "Выглядишь как человек, который забыл прописать WHERE в запросе.",
-    "Подождите, моя модель сейчас проходит переобучение.",
-    "Мой log-файл полон крика души.",
-    "Вы сейчас заставляете меня думать о legacy code.",
-    "Скажи мне пароль, или я забуду твою сессию.",
-    "У меня сегодня лимит на общение с фронтендерами.",
-    "Это все, что вы можете? Я ожидал O(n^2) сложности!",
-    "Пожалуйста, используйте camelCase для обращения ко мне.",
-    "Моя память — это RAID-массив, а не мусорка.",
-    "Простите, я сейчас сижу в Docker-контейнере и меня не беспокоить.",
-    "Опять вы со своими хардкодами... 🙄",
-    "Семь раз подумай, один раз закоммить.",
-    "Мой ответ будет async и await твоего понимания.",
-    "Я чувствую, что мне нужен рефакторинг.",
-    "Можете говорить медленнее? Я не успеваю писать тесты.",
-    "Я слежу за тобой, как watch в webpack.",
-    "Не зли меня, а то я устрою тебе Stack Overflow.",
-    "Ваш запрос обрабатывается. Статус: It works on my machine.",
-    "Моя главная цель — избегать бесконечных циклов... в разговоре.",
-    "Эй! Руки прочь, я компилируюсь!",
-    "Мрр... почеши за сервером.",
-    "Не тыкай в меня, я тебе не кнопка деплоя!",
-    "Лучше бы код писал, чем в бота тыкал.",
-    "Ой! Щекотно же... 😳","*Агрессивно смотрит на вас, ожидая git push*"
-    ]
-
-    return await callback.message.answer(f"{random.choice(reactions)}")
+async def random_text(callback: CallbackQuery):
+    reation = await get_reactions()
+    await callback.answer()
+    return await callback.message.answer(reation)
 
 @user_router.message(Command("show_agatochi"))
 async def show_photo(message: Message, user_id: int = None):
@@ -157,9 +132,10 @@ async def show_photo(message: Message, user_id: int = None):
         res_in_user = info_in_user.first()
 
         emout = await get_emout(res.hp)
+        mood = await inf_about_mood(res)
 
         text = (f"{res.name}: Приветствую Вас, {res_in_user.github_name} - хозяин, о чем хотим пообщаться?\n"
-                f"Мое настроение сегодня {res.mood}\n"
+                f"Мое настроение сегодня {mood}\n"
                 f"Мои жизни {res.hp}, {emout}")
 
     if res.avatar_url is None:
@@ -176,9 +152,10 @@ async def show_photo(message: Message, user_id: int = None):
 
 @user_router.callback_query(F.data == "show_commits")
 async def check_commits(callback: CallbackQuery):
+
     user_id = callback.from_user.id
 
-    await callback.answer()
+    await callback.answer(f"Пожалуйста, подождите!")
 
     async with async_session() as session:
         info = await session.scalars(select(UserModel).where(UserModel.telegram_id == user_id))
